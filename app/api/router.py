@@ -3,7 +3,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dao import BlogDAO, TagDAO, BlogTagDAO
-from app.api.schemas import BlogCreateSchemaBase, BlogCreateSchemaAdd
+from app.api.dependencies import get_blog_info
+from app.api.schemas import BlogCreateSchemaBase, BlogCreateSchemaAdd, BlogNotFound, BlogFullResponse
 from app.auth.dependencies import get_current_user
 from app.auth.models import User
 from app.dao.session_maker import TransactionSessionDep
@@ -27,12 +28,22 @@ async def add_blog(
 
         if tags:
             tags_ids = await TagDAO.add_tags(session=session, tag_names=tags)
-            await BlogTagDAO.add_blog_tags(session=session, blog_tag_pairs=[
-                {'blog_id': blog_id, 'tag_id': tag_id} for tag_id in tags_ids
-            ]
+            await BlogTagDAO.add_blog_tags(
+                session=session,
+                blog_tag_pairs=[
+                    {'blog_id': blog_id, 'tag_id': tag_id} for tag_id in tags_ids
+                ]
             )
         return {'status': 'success', 'message': f'Blog with id {blog_id} successfully added.'}
     except IntegrityError as e:
         if 'UNIQUE constraint failed' in str(e.orig):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUESTS, detail='Blog with this name already exists')
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Error while blog adding')
+
+
+@router.get('/blog/{blog_id}', summary='Get blog info')
+async def get_blog_endpoint(
+        blog_id: int,
+        blog_info: BlogFullResponse | BlogNotFound = Depends(get_blog_info),
+) -> BlogFullResponse | BlogNotFound:
+    return blog_info

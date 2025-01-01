@@ -2,6 +2,7 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.api.models import Tag, Blog, BlogTag
 from app.dao.base import BaseDAO
@@ -39,6 +40,20 @@ class TagDAO(BaseDAO):
 
 class BlogDAO(BaseDAO):
     model = Blog
+
+    @classmethod
+    async def get_full_blog_info(cls, session: AsyncSession, blog_id: int):
+        query = (
+            select(cls.model)
+            .options(
+                joinedload(Blog.user),
+                selectinload(Blog.tags),
+            )
+            .filter_by(id=blog_id)
+        )
+
+        result = await session.execute(query)
+        return result.scalar_one_or_none()
 
 
 class BlogTagDAO(BaseDAO):

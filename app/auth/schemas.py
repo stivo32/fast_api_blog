@@ -17,7 +17,7 @@ class UserBase(EmailModel):
     @field_validator("phone_number")
     def validate_phone_number(cls, value: str) -> str:
         if not re.match(r'^\+\d{5,15}$', value):
-            raise ValueError('Phone number must begin with с "+" and contain from 5 to 15 numbers')
+            raise ValueError('Phone number must begin with "+" and contain from 5 to 15 numbers')
         return value
 
 

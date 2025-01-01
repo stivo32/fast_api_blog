@@ -1,10 +1,11 @@
 from loguru import logger
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.api.models import Tag, Blog, BlogTag
+from app.api.schemas import BlogFullResponse, Author
 from app.dao.base import BaseDAO
 
 
@@ -54,6 +55,142 @@ class BlogDAO(BaseDAO):
 
         result = await session.execute(query)
         return result.scalar_one_or_none()
+
+    @classmethod
+    async def delete_blog(cls, session: AsyncSession, blog_id: int, author_id: int) -> dict:
+        query = select(cls.model).filter_by(id=blog_id)
+        result = await session.execute(query)
+        blog = result.scalar_one_or_none()
+
+        if not blog:
+            return {
+                'message': f'Blog with ID "{blog_id}" is not found',
+                'status': 'error',
+            }
+
+        if blog.author != author_id:
+            return {
+                'message': f'You don\'t have permissions to delete this blog',
+                'status': 'error',
+            }
+
+        await session.delete(blog)
+        await session.flush()
+
+        return {
+            'message': f"Blog with ID {blog_id} successfully deleted.",
+            'status': 'success'
+        }
+
+    @classmethod
+    async def change_blog_status(cls, session: AsyncSession, blog_id: int, new_status: str, author_id: int) -> dict:
+        query = select(cls.model).filter_by(id=blog_id)
+        result = await session.execute(query)
+        blog = result.scalar_one_or_none()
+
+        if not blog:
+            return {
+                'message': f'Blog with ID "{blog_id}" is not found',
+                'status': 'error',
+            }
+
+        if blog.author != author_id:
+            return {
+                'message': f'You don\'t have permissions to change status of this blog',
+                'status': 'error',
+            }
+
+        if blog.status == new_status:
+            return {
+                'message': f"Blog already has status '{new_status}'.",
+                'status': 'info',
+                'blog_id': blog_id,
+                'current_status': new_status
+            }
+
+        blog.status = new_status
+        await session.flush()
+
+        return {
+            'message': f"Status changed to '{new_status}'.",
+            'status': 'success',
+            'blog_id': blog_id,
+            'new_status': new_status
+        }
+
+    @classmethod
+    async def get_blog_list(
+            cls,
+            session: AsyncSession,
+            author_id: int | None,
+            tag: str | None,
+            page: int = 1,
+            page_size: int = 10
+    ) -> dict:
+        page_size = max(3, min(page_size, 100))
+        page = max(1, page)
+
+        base_query = select(cls.model).options(
+            joinedload(cls.model.user),
+            selectinload(cls.model.tags)
+        ).filter_by(status='published')
+
+        if author_id is not None:
+            base_query = base_query.filter_by(author=author_id)
+
+        if tag is not None:
+            base_query = base_query.join(cls.model.tags).filter(cls.model.tags.any(Tag.name.ilike(f"%{tag.lower()}%")))
+
+        count_query = select(func.count()).select_from(base_query.subquery())
+        total_result = await session.scalar(count_query)
+
+        if not total_result:
+            return {
+                "page": page,
+                "total_page": 0,
+                "total_result": 0,
+                "blogs": []
+            }
+
+        total_page = (total_result + page_size - 1) // page_size
+
+        offset = (page - 1) * page_size
+        paginated_query = base_query.offset(offset).limit(page_size)
+
+        result = await session.execute(paginated_query)
+        blogs = result.scalars().all()
+
+        unique_blogs = []
+        seen_ids = set()
+        for blog in blogs:
+            if blog.id not in seen_ids:
+                unique_blogs.append(BlogFullResponse(
+                    title=blog.title,
+                    content=blog.content,
+                    short_description=blog.short_description,
+                    status=blog.status,
+                    author=Author.model_validate(
+                        blog.user
+                    ),
+                    tags=[tag.name for tag in blog.tags]
+                ))
+                seen_ids.add(blog.id)
+
+        filters = []
+        if author_id is not None:
+            filters.append(f"author_id={author_id}")
+        if tag:
+            filters.append(f"tag={tag}")
+        filter_str = " & ".join(filters) if filters else "no filters"
+
+        logger.info(f"Page {page} fetched with {len(blogs)} blogs, filters: {filter_str}")
+
+        return {
+            "page": page,
+            "total_page": total_page,
+            "total_result": total_result,
+            "blogs": unique_blogs
+        }
 
 
 class BlogTagDAO(BaseDAO):

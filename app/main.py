@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.auth.router import router as router_auth
+from app.api.router import router as router_api
 from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
@@ -24,3 +25,4 @@ def home_page():
 
 
 app.include_router(router_auth)
+app.include_router(router_api)

@@ -1,6 +1,8 @@
 from fastapi import Request, HTTPException, status, Depends
 from jose import jwt, JWTError
 from datetime import datetime, timezone
+
+from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.exceptions import TokenExpiredException, NoJwtException, NoUserIdException, ForbiddenException, TokenNoFound

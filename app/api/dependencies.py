@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dao import BlogDAO
 from app.api.models import Blog
 from app.api.schemas import BlogNotFound, BlogFullResponse, Author
+from app.api.utils import convert_blog_model
 from app.auth.dependencies import get_current_user_optional
 from app.auth.models import User
 from app.dao.session_maker import SessionDep
@@ -25,13 +26,4 @@ async def get_blog_info(
             return BlogNotFound(
                 message='This blog is in draft status, only author has access to it',
             )
-        return BlogFullResponse(
-            title=result.title,
-            content=result.content,
-            short_description=result.short_description,
-            status=result.status,
-            author=Author.model_validate(
-                result.user
-            ),
-            tags=[tag.name for tag in result.tags]
-        )
+        return convert_blog_model(result)

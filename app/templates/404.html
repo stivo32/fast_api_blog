@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blog ID {{ blog_id }} Not Found</title>
+    <link rel="stylesheet" href="/static/style/404.css">
+</head>
+<body>
+<div class="message-container">
+    <h1 class="message-title">Blog Not Found</h1>
+    <p class="message-text">
+        Unfortunately, the blog <strong>with ID {{ blog_id }}</strong> was not found. It is possible that the author has deleted the entry
+        or moved it to drafts.
+    </p>
+    <a href="/blogs/" class="button">View Published Blogs</a>
+</div>
+</body>
+</html>

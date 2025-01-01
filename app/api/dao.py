@@ -6,6 +6,7 @@ from sqlalchemy.orm import joinedload, selectinload
 
 from app.api.models import Tag, Blog, BlogTag
 from app.api.schemas import BlogFullResponse, Author
+from app.api.utils import convert_blog_model
 from app.dao.base import BaseDAO
 
 
@@ -164,16 +165,9 @@ class BlogDAO(BaseDAO):
         seen_ids = set()
         for blog in blogs:
             if blog.id not in seen_ids:
-                unique_blogs.append(BlogFullResponse(
-                    title=blog.title,
-                    content=blog.content,
-                    short_description=blog.short_description,
-                    status=blog.status,
-                    author=Author.model_validate(
-                        blog.user
-                    ),
-                    tags=[tag.name for tag in blog.tags]
-                ))
+                unique_blogs.append(
+                    convert_blog_model(blog),
+                )
                 seen_ids.add(blog.id)
 
         filters = []

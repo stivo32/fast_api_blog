@@ -1,3 +1,5 @@
+import datetime
+
 from pydantic import ConfigDict, BaseModel
 
 from app.auth.schemas import UserBase
@@ -23,14 +25,20 @@ class BlogNotFound(BaseModelConfig):
     status: str = 'Error'
 
 
+class Author(BaseModelConfig):
+    author_id: int
+    author_name: str
+
+
 class BlogFullResponse(BaseModelConfig):
+    id: int
     title: str
     content: str
     short_description: str
     status: str
-    author: UserBase
+    author: Author
     tags: list[str]
+    created_at: datetime.datetime
 
 
-class Author(UserBase):
-    ...
+
